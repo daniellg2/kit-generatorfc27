@@ -1,0 +1,9 @@
+.venv/
+.runtime/
+.uv-cache/
+.test-tmp/
+__pycache__/
+.pytest_cache/
+output/*.png
+*.recovery.json
+output/app.log
