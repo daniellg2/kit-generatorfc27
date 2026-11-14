@@ -21,6 +21,10 @@ def asset_fields(data):
     yield data, "mask"
     for layer in data["layers"]:
         yield layer, "source"
+        yield layer, "mask_source"
+    for calibration in data.get("photo_calibrations",[]):
+        yield calibration,"source"
+        yield calibration,"mesh"
     for ref in data["references"]:
         yield ref, "path"
 

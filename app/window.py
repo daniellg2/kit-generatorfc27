@@ -121,6 +121,7 @@ class MainWindow(QMainWindow):
         header.addStretch()
         self.project_label = label("Novo uniforme","subtitle")
         header.addWidget(self.project_label)
+        header.addWidget(button("Gerar a partir de foto",self.generate_photo,True))
         header.addWidget(button("Salvar projeto",self.save))
         header.addWidget(button("Exportar PNG",self.export_dialog,True))
         outer.addLayout(header)
@@ -220,7 +221,13 @@ class MainWindow(QMainWindow):
         self.canvas.moved.connect(self.move_layer)
         self.canvas.vertexMoved.connect(self.move_vertex)
         self.canvas.clicked.connect(self.pick_layer)
-        cl.addWidget(self.canvas,1)
+        from app.preview3d.widget import Preview3D
+        self.editor_tabs = QTabWidget()
+        self.editor_tabs.addTab(self.canvas,"Editor UV")
+        self.preview3d = Preview3D()
+        self.preview3d.sleeveRequested.connect(self.template_combo.setCurrentIndex)
+        self.editor_tabs.addTab(self.preview3d,"Prévia 3D")
+        cl.addWidget(self.editor_tabs,1)
         self.hint = label("Scroll: zoom  ·  botão central: pan  ·  arraste: mover camada  ·  F: enquadrar","subtitle")
         cl.addWidget(self.hint)
         split.addWidget(center)
@@ -298,6 +305,11 @@ class MainWindow(QMainWindow):
 
     def current_layer(self):
         return next((l for l in self.project.layers if l.id == self.selected_id),None)
+
+    @safe
+    def generate_photo(self):
+        from app.photo_dialog import PhotoDialog
+        PhotoDialog(self).exec()
 
     def current_region(self):
         return next((r for r in self.project.regions if r.id == self.region_id),None)
@@ -397,6 +409,7 @@ class MainWindow(QMainWindow):
             self.guide = guide_overlay(self.project,size)
             self.guide_key = key
         image = render(self.project,size)
+        self.preview3d.update_texture(image,self.project.template)
         self.canvas.display(image,self.guide,self.project.regions,self.region_id,self.current_layer(),self.uv_opacity.value()/100,self.show_regions.isChecked())
 
     def dirty(self):
@@ -899,6 +912,10 @@ class MainWindow(QMainWindow):
             if project.mask == asset:project.mask = replacement
             for l in project.layers:
                 if l.source == asset:l.source = replacement
+                if l.mask_source == asset:l.mask_source = replacement
+            for c in project.photo_calibrations:
+                for key in ('source','mesh'):
+                    if c[key]==asset:c[key]=replacement
             for ref in project.references:
                 if ref["path"] == asset:ref["path"] = replacement
         render(project,(256,round(256*read_image(project.template).height/read_image(project.template).width)))
@@ -945,6 +962,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self,event):
         if self.confirm_unsaved():
+            self.preview3d.shutdown()
             (ROOT / "output" / "autosave.recovery.json").unlink(missing_ok=True)
             event.accept()
         else:event.ignore()

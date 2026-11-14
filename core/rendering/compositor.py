@@ -133,13 +133,15 @@ def render(project, size=None):
         surface.alpha_composite(art, (round(layer.x*size[0]-art.width/2), round(layer.y*size[1]-art.height/2)))
         if layer.region:
             surface.putalpha(ImageChops.multiply(surface.getchannel("A"), polygon_mask(regions[layer.region].points, size)))
+        if layer.mask_source:
+            surface.putalpha(ImageChops.multiply(surface.getchannel("A"),read_image(layer.mask_source).convert('L').resize(size,Image.Resampling.NEAREST)))
         result = Image.alpha_composite(result, surface)
     result.putalpha(ImageChops.multiply(result.getchannel("A"), mask))
     return result
 
 
 def export_png(project, path):
-    sources = [project.template,project.mask,*[l.source for l in project.layers],*[r["path"] for r in project.references]]
+    sources = [project.template,project.mask,*[l.source for l in project.layers],*[l.mask_source for l in project.layers],*[r["path"] for r in project.references]]
     if Path(path).resolve() in [Path(p).resolve() for p in sources if p]:
         raise ValueError("A exportação não pode sobrescrever um arquivo original do projeto.")
     image = render(project)

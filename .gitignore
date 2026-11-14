@@ -7,3 +7,5 @@ __pycache__/
 output/*.png
 *.recovery.json
 output/app.log
+output/generated/
+output/*.json

@@ -31,6 +31,7 @@ class Layer:
     opacity: float = 1.
     color: str = "#ffffff"
     source: str = ""
+    mask_source: str = ""
     region: str = ""
     visible: bool = True
     flip_x: bool = False
@@ -58,6 +59,7 @@ class Project:
     references: list = field(default_factory=list)
     export_width: int = 2048
     notes: str = ""
+    photo_calibrations: list = field(default_factory=list)
 
     def to_dict(self):
         return asdict(self)
@@ -74,6 +76,12 @@ class Project:
         return project
 
     def validate(self):
+        for c in self.photo_calibrations:
+            if not isinstance(c,dict) or not all(k in c for k in ('name','source','mesh','mesh_sha256','photo_points','anchors','stripe_points')):
+                raise ValueError('Calibração fotográfica inválida.')
+            self._points(c['photo_points'],4)
+            if c['stripe_points']:self._points(c['stripe_points'],3)
+            if len(c['anchors'])!=4:raise ValueError('Calibração exige quatro âncoras.')
         if not 64 <= self.export_width <= 8192:
             raise ValueError("Largura de exportação inválida (64–8192).")
         if len(self.layers) > 500 or len(self.regions) > 200:

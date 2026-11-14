@@ -1,5 +1,39 @@
 # FC27 Kit Generator
 
+Guia de uso: [passo a passo com a foto do Cruzeiro](PASSO_A_PASSO.md).
+
+## Gerar a partir de foto — projeção regional assistida
+
+O botão **Gerar camadas e conferir em 3D** pode ser usado diretamente, sem recalcular a prévia antes. Ele valida os quatro pares, informa quantos pontos faltam em cada painel e fica bloqueado somente durante o cálculo. **Recalcular prévia** continua disponível para revisar o resultado antes de aplicar.
+
+Use **Gerar a partir de foto** no cabeçalho, após selecionar Collar 0 manga curta ou longa. O diálogo tem fotografia, UV extraído da geometria e prévia da composição. Importe a foto original, escolha uma parte anatômica e marque **quatro pares numerados** na mesma ordem ao redor de uma pequena região aproximadamente plana. Arraste os pontos para corrigir. No UV, clique dentro das ilhas brancas: cada ponto é associado a um triângulo real e a pesos baricêntricos. Pontos fora da geometria, quadriláteros degenerados ou cruzados são rejeitados.
+
+Escolha **2 · Contorno da faixa na foto** e clique em pelo menos três pontos ao redor da faixa, dentro da área calibrada. Os quatro pontos de correspondência ficam preservados ao alternar os modos. **Recalcular prévia** detecta uma paleta na região, sugere a cor predominante e projeta o contorno da faixa por uma homografia local. O resultado tem uma camada de base regional e uma camada de polígono com a cor predominante da faixa. **Gerar camadas e conferir em 3D** recalcula usando os pontos atuais, adiciona essas camadas ao projeto e abre a prévia 3D existente. Ctrl+Z desfaz toda a geração; Ctrl+Y restaura. Nada substitui as camadas anteriores.
+
+Repita em outras partes para reconstruir mangas, ombros e faixas distintas. As camadas permanecem editáveis: cor, posição, contorno, rotação e opacidade seguem os controles existentes. Use o editor para adicionar PNG/SVG original por cima de áreas de logos; a projeção não reconstrói marcas. A imagem inteira não é inserida como um retângulo: somente contornos selecionados e cores uniformes são reconstruídos. Isso evita transferir automaticamente sombras e dobras como textura; a estimativa de cor ainda depende da iluminação da foto e deve ser revisada.
+
+O módulo `core/projection/photo_to_uv.py` usa `assets/models/Collar_0.json` ou `Collar_0_LS.json`, com coordenadas UV por canto reais. As correspondências guardam índice de triângulo, pesos baricêntricos, hash SHA-256 da geometria, pontos normalizados na foto e contorno da faixa. A posição 3D da âncora pode ser recuperada pela interpolação dos vértices do mesmo triângulo. **Última calibração** reabre a última correspondência salva somente quando o hash do modelo coincide. O JSON de projeto mantém essas informações e caminhos relativos. Preserve também `output/generated/`, que contém máscaras geométricas independentes, com nomes únicos, usadas pelas camadas geradas.
+
+`core/generation/kit_generator.py` lê a fotografia original para amostrar cores; somente a interface usa miniaturas. A forma vetorial é rasterizada pelo compositor na resolução final de exportação, com recorte regional, máscara da geometria e máscara UV existente. Essa última continua sujeita às divergências de borda documentadas abaixo. O cálculo da geração e da prévia roda em QThread; o diálogo aguarda o cálculo terminar antes de permitir fechamento.
+
+Limites desta versão: homografia **local** por quadrilátero manual, sem recuperação de câmera ou deformação de tecido em superfícies curvas. Divida áreas curvas em pequenas regiões e confira em 3D. Não há inferência de costas/mangas invisíveis: o diálogo avisa que só a região calibrada está coberta; as demais camadas do projeto ficam como estavam. O contorno contrastante é escolhido pelo usuário e sua paleta é calculada automaticamente, sem segmentação semântica automática de todas as faixas. Não há detecção automática de logos, correção fotométrica de sombras ou restauração de padrões complexos. As linhas numeradas nos dois painéis indicam a ordem dos pares.
+
+`cruzeiro_reference.png` agora contém a fotografia frontal enviada pelo usuário. O diálogo abre essa referência automaticamente; a demonstração também a inclui. A calibração das faixas e a fidelidade visual do Cruzeiro ainda precisam ser verificadas no modelo 3D. Testes sintéticos verificam um contorno azul conhecido com erro geométrico máximo inferior a **0,001 pixel em 2048 px**, cor da faixa, máscara, persistência e exportação sem guias; isso mede a transformação controlada, não a fidelidade de uma fotografia real. `tools.check_preview3d` também exercita o diálogo, geração, desfazer/refazer e atualização da textura na camisa real via WebEngine. Capturas: `output/photo_projection_dialog.png` e `output/photo_projection_3d.png`.
+
+## Prévia 3D integrada
+
+A aba **Prévia 3D**, ao lado de Editor UV, carrega os modelos reais já exportados em `assets/models/Collar_0.glb`, `Collar_0_LS.glb` e `Shorts_0.glb`. Não precisa de Blender instalado para visualizar. Three.js r170 e seus módulos estão incluídos localmente com licença MIT; Qt WebEngine serve os arquivos por um servidor restrito a `127.0.0.1`, sem CDN ou internet.
+
+Escolha manga curta no seletor do molde, abra a aba 3D e altere a cor no painel de propriedades. Para adicionar faixas, use o editor UV e retorne à prévia. Arraste com o botão esquerdo para girar, use scroll para zoom e botão direito para pan. Os botões Frente, Costas, Esquerda, Direita e Centralizar reposicionam a câmera. A troca de mangas usa o seletor existente e mantém sua confirmação quando houver calibração. Marque Short para mostrá-lo e use Textura independente do short para carregar seu PNG. Essa textura do short é somente da sessão de prévia e não é salva no JSON nem exportada com a camisa.
+
+A composição limpa é transmitida como PNG RGBA em até 1024 px, com debounce de 180 ms, detecção de conteúdo inalterado, cor sRGB e `flipY=false` para o UV glTF. A geometria é carregada uma vez por modelo e mantida em cache; atualizações de textura preservam a câmera. Renderização ocorre quando há mudanças ou interação. O material original exportado é substituído apenas em memória por um material branco neutro, sem multiplicação pelas cores de vértices. Há iluminação neutra e modo **Cor sem luz** para inspecionar as cores sem sombreamento. Transparência é mantida; superfícies transparentes sobrepostas ainda estão sujeitas à ordenação de transparência do WebGL.
+
+**Teste UV** aplica aos três modelos uma textura numerada, com quatro cores e setas U/TOP. Desmarcar restaura as texturas de trabalho. Não altera camadas, PNG exportado, modelos ou arquivos originais. UVs personalizados suspendem a prévia porque sua correspondência não está validada.
+
+Validação executada: os UVs por canto dos três GLBs correspondem aos dados extraídos do Blender (comparação quantizada a 0,0001, considerando a convenção vertical glTF). As máscaras raster existentes apresentam IoU de **99,4114% na manga curta e 99,6684% na longa** com a cobertura geométrica. Há respectivamente 8.625 e 6.725 pixels geométricos fora das máscaras em 2048²: podem ocorrer pequenos recortes nas bordas. Essa divergência foi reportada e nenhuma máscara ou geometria foi corrigida automaticamente. O short não possui template raster correspondente neste projeto.
+
+Testes adicionais: `python -m tools.validate_preview_uv` gera `output/uv_validation.json`; `python -m tools.check_preview3d` executa integração real Qt WebEngine, valida atualização sem recarregar geometria, preservação da câmera, troca de mangas e short, e grava capturas frontais/traseiras/laterais. Esse teste precisa de sessão gráfica com WebGL; em ambientes restritos pode exigir execução fora do sandbox. As capturas foram inspecionadas com textura numerada. Não houve validação dentro do FC 27. Não foram adicionadas IA ou projeção fotográfica nesta etapa.
+
 Protótipo desktop para Windows, em português, para reconstrução **manual e assistida** de uniformes em um UV fixo. Python 3.11+, PySide6, Pillow, NumPy e OpenCV. Processamento local por CPU, sem API, IA generativa, CUDA ou modelos grandes. A instalação inicial das dependências precisa de internet; o aplicativo instalado funciona offline.
 
 ## Iniciar no Windows
@@ -58,7 +92,7 @@ Os três exemplos adicionais foram copiados integralmente para `assets/reference
 
 Abra **Projeto → Demonstração Cruzeiro** ou `assets/cruzeiro_demo.json`. A demonstração inclui base branca e camadas editáveis nomeadas para detalhes azuis, três listras em cada ombro, faixas azuis/amarelas nas mangas e gola branca. Os detalhes começam **ocultos**, pois a correspondência anatômica ainda precisa de calibração. Associe cada detalhe à região correta, use Enquadrar, ajuste seu tamanho e ative a visibilidade. Para as três listras, ajuste cada faixa separadamente na região de ombro correspondente.
 
-**`assets/references/cruzeiro_reference.png` não foi fornecido.** O projeto de demonstração registra essa ausência em suas notas, em vez de usar uma camisa diferente como se fosse a referência solicitada. Não há escudo do Cruzeiro, Adidas ou Betnacional separado nos arquivos recebidos. Reserve suas posições com landmarks nomeados; quando os originais forem fornecidos, importe-os como arte e use Alinhar a landmark. Nenhum texto aproximado substitui essas marcas na exportação. A gola polo depende também da geometria do modelo: uma textura não muda o formato 3D da gola Collar 0.
+**`assets/references/cruzeiro_reference.png` contém a foto frontal do Cruzeiro fornecida pelo usuário.** A demonstração a inclui como Frente e o diálogo de projeção a abre automaticamente. Não há escudo do Cruzeiro, Adidas ou Betnacional separado nos arquivos recebidos. Reserve suas posições com landmarks nomeados; quando os originais forem fornecidos, importe-os como arte e use Alinhar a landmark. Nenhum texto aproximado substitui essas marcas na exportação. A gola polo depende também da geometria do modelo: uma textura não muda o formato 3D da gola Collar 0.
 
 ## Análise experimental, fase 2
 
@@ -80,9 +114,9 @@ O histórico mantém até 40 estados de metadados, sem duplicar pixels. A cada 4
 
 PNG RGBA, resolução original ou largura configurável com altura proporcional, até **16 megapixels** (4096 × 4096 para estes UVs). O resultado contém somente as camadas visíveis recortadas. A prévia é reduzida; a exportação recompõe na resolução escolhida. As caixas de seleção, grade, textos, landmarks, regiões e linhas UV são apenas objetos da interface e não entram no compositor.
 
-O editor trabalha com prévia de até 1024 px. Fotos são abertas sob demanda e há cache limitado. Imagens importadas são limitadas a 32 megapixels. Camadas individuais têm limites de memória antes da rotação; reduza dimensões ou resolução se receber esse aviso. Nenhum recurso exige GPU. Um PC com 4 GB de VRAM pode usá-lo sem alocar essa VRAM; a memória RAM necessária varia com a resolução e as imagens importadas.
+O editor trabalha com prévia de até 1024 px. Fotos são abertas sob demanda e há cache limitado. Imagens importadas são limitadas a 32 megapixels. Camadas individuais têm limites de memória antes da rotação; reduza dimensões ou resolução se receber esse aviso. A composição 2D usa CPU; a prévia 3D usa WebGL e memória gráfica, com texturas reduzidas e três modelos em cache.
 
-**Compatibilidade exata com FC 27 não validada.** É necessário comparar uma exportação com uma textura funcional e testá-la no pipeline de modding/modelo do usuário. Este protótipo não exporta DDS, normal maps, mapas de material, pacotes de mod nem visualização 3D.
+**Compatibilidade exata com FC 27 não validada.** É necessário comparar uma exportação com uma textura funcional e testá-la no pipeline de modding/modelo do usuário. Este protótipo não exporta DDS, normal maps, mapas de material ou pacotes de mod. A visualização 3D usa os GLBs extraídos do arquivo fornecido.
 
 ## Arquitetura
 
@@ -109,7 +143,7 @@ O compositor recebe apenas o projeto e o tamanho de saída. A malha e as guias s
 | Fase 2 | Paleta, segmentação e linhas experimentais; padrões repetidos e alinhamento por landmarks disponíveis |
 | Fase 3 | Contrato de análise preparado; sem modelos instalados |
 
-A correspondência foto → UV, a remoção de perspectiva/dobras/sombras, o fechamento automático de costuras e o reconhecimento de logos não foram implementados. A versão entrega o fluxo manual com recorte fixo, sem gerar uniformes aleatórios ou regiões desconhecidas.
+A correspondência foto → UV por regiões planas está disponível no novo diálogo descrito acima. Remoção automática de dobras/sombras, fechamento automático de costuras e reconhecimento de logos continuam pendentes.
 
 ## Testes
 

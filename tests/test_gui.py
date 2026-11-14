@@ -21,6 +21,9 @@ class GuiTests(unittest.TestCase):
         apply_theme(cls.app)
 
     def setUp(self):
+        recovery=patch.object(MainWindow,'recover')
+        recovery.start()
+        self.addCleanup(recovery.stop)
         self.window = MainWindow()
         self.window.show()
         self.app.processEvents()
@@ -28,7 +31,8 @@ class GuiTests(unittest.TestCase):
 
     def tearDown(self):
         self.window.saved_state = self.window.project.to_dict()
-        self.window.close()
+        with patch('app.window.Path.unlink'):
+            self.window.close()
         self.app.processEvents()
 
     def test_edit_undo_redo_and_roundtrip(self):

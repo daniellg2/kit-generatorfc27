@@ -19,7 +19,7 @@ def new_project(sleeve="short_sleeve"):
 def cruzeiro_demo():
     project = new_project()
     project.name = "Cruzeiro · estudo manual"
-    project.notes = ("Estudo baseado na descrição, sem fotografia do Cruzeiro fornecida. "
+    project.notes = ("Referência frontal do Cruzeiro disponível em assets/references/cruzeiro_reference.png. "
                      "Camadas de detalhes começam ocultas: calibre as regiões, selecione cada camada, "
                      "associe a região, use Enquadrar e ative a visibilidade. Gola polo exige validar o modelo 3D. "
                      "Reservas são landmarks do editor, nunca letras/logos exportados.")

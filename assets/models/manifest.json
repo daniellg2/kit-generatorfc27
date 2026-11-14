@@ -1,0 +1,27 @@
+{
+  "source_sha256": "e0359ef5c3b90808ea66136a9c35c2d4e4faadd856ea1dde6954d742589f8b45",
+  "models": [
+    {
+      "object": "Collar 0",
+      "glb": "Collar_0.glb",
+      "geometry": "Collar_0.json",
+      "triangles": 8274
+    },
+    {
+      "object": "Collar 0 LS",
+      "glb": "Collar_0_LS.glb",
+      "geometry": "Collar_0_LS.json",
+      "triangles": 12014
+    },
+    {
+      "object": "Shorts 0",
+      "glb": "Shorts_0.glb",
+      "geometry": "Shorts_0.json",
+      "triangles": 3576
+    }
+  ],
+  "limitations": [
+    "Preview exports evaluated geometry in the current pose; animation and armatures are not exported.",
+    "Procedural Blender material nodes are replaced by a neutral Principled material for editor textures."
+  ]
+}
